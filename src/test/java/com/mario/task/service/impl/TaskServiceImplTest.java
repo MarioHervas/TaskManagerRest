@@ -29,6 +29,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
+import com.mario.task.exception.InvalidDueDateException;
 
 @ExtendWith(MockitoExtension.class)
 class TaskServiceImplTest {
@@ -100,5 +101,36 @@ class TaskServiceImplTest {
         taskService.deleteTask(id);
 
         verify(taskRepository).deleteById(id);
+    }
+    @Test
+    void updateTaskAllowsCompletingOverdueTask() {
+        UUID id = UUID.randomUUID();
+        Instant created = Instant.parse("2026-01-01T00:00:00Z");
+        LocalDate pastDueDate = LocalDate.now().minusDays(5);
+        Task existing = new Task(
+                id, "Title", null, pastDueDate, TaskStatus.OPEN, TaskPriority.LOW, created, created);
+        when(taskRepository.findById(id)).thenReturn(Optional.of(existing));
+        when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        UpdateTaskRequest request = new UpdateTaskRequest(
+                "Title", null, pastDueDate, TaskStatus.COMPLETE, TaskPriority.LOW);
+
+        Task updated = taskService.updateTask(id, request);
+
+        assertEquals(TaskStatus.COMPLETE, updated.getStatus());
+        assertEquals(pastDueDate, updated.getDueDate());
+    }
+
+    @Test
+    void updateTaskRejectsChangingDueDateToPast() {
+        UUID id = UUID.randomUUID();
+        Instant created = Instant.parse("2026-01-01T00:00:00Z");
+        Task existing = new Task(
+                id, "Title", null, null, TaskStatus.OPEN, TaskPriority.LOW, created, created);
+        when(taskRepository.findById(id)).thenReturn(Optional.of(existing));
+        UpdateTaskRequest request = new UpdateTaskRequest(
+                "Title", null, LocalDate.now().minusDays(1), TaskStatus.OPEN, TaskPriority.LOW);
+
+        assertThrows(InvalidDueDateException.class, () -> taskService.updateTask(id, request));
+        verify(taskRepository, never()).save(any());
     }
 }

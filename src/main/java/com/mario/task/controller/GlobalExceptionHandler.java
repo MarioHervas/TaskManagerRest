@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import com.mario.task.exception.InvalidDueDateException;
 
 import java.util.UUID;
 
@@ -29,5 +30,10 @@ public class GlobalExceptionHandler {
         String errorMessage = String.format("Task with ID '%s' not found.",taskNotFoundId);
         ErrorDto errorDto = new ErrorDto(errorMessage);
         return new ResponseEntity<>(errorDto,HttpStatus.BAD_REQUEST);
+    }
+    @ExceptionHandler(InvalidDueDateException.class)
+    public ResponseEntity<ErrorDto> handleInvalidDueDateException(InvalidDueDateException ex) {
+        ErrorDto errorDto = new ErrorDto(ex.getMessage());
+        return new ResponseEntity<>(errorDto, HttpStatus.BAD_REQUEST);
     }
 }
